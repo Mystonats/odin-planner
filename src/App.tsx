@@ -1,35 +1,78 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React, { useState } from 'react';
+import { CharacterProvider } from './contexts/CharacterContext';
+import { EventProvider } from './contexts/EventContext';
+import Layout from './components/Layout/Layout';
+import CharacterList from './components/Characters/CharacterList';
+import EventList from './components/Events/EventList';
+import CalendarLegend from './components/Calendar/CalendarLegend';
+import ScheduleCalendar from './components/Calendar/ScheduleCalendar';
+import EventModal from './components/Events/EventModal';
+import { Activity } from './types/Activity';
 
-function App() {
-  const [count, setCount] = useState(0)
-
+const App: React.FC = () => {
+  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
+  const [showEventModal, setShowEventModal] = useState<boolean>(false);
+  const [selectedEvent, setSelectedEvent] = useState<Activity | null>(null);
+  
+  // Handle event selection from event list
+  const handleSelectEvent = (event: Activity) => {
+    setSelectedEvent(event);
+    setShowEventModal(true);
+  };
+  
+  // Handle event modal close
+  const handleCloseEventModal = () => {
+    setShowEventModal(false);
+    setSelectedEvent(null);
+  };
+  
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    <CharacterProvider>
+      <EventProvider>
+        <Layout>
+          <div className="flex flex-col lg:flex-row gap-6">
+            {/* Sidebar section */}
+            <div className="w-full lg:w-1/4 space-y-6">
+              {/* Character list component */}
+              <CharacterList
+                onSelectCharacter={setSelectedCharacterId}
+                selectedCharacterId={selectedCharacterId}
+              />
+              
+              {/* Event list component */}
+              <EventList
+                selectedCharacterId={selectedCharacterId}
+                onSelectEvent={handleSelectEvent}
+              />
+              
+              {/* Legend for calendar colors */}
+              <CalendarLegend
+                selectedCharacterId={selectedCharacterId}
+              />
+            </div>
+            
+            {/* Main calendar section */}
+            <div className="w-full lg:w-3/4">
+              <ScheduleCalendar
+                selectedCharacterId={selectedCharacterId}
+              />
+            </div>
+          </div>
+          
+          {/* Event modal */}
+          {showEventModal && (
+            <EventModal
+              isOpen={showEventModal}
+              onClose={handleCloseEventModal}
+              event={selectedEvent}
+              slotInfo={null}
+              characterId={selectedCharacterId}
+            />
+          )}
+        </Layout>
+      </EventProvider>
+    </CharacterProvider>
+  );
+};
 
-export default App
+export default App;
