@@ -19,7 +19,7 @@ const CharacterModal: React.FC<CharacterModalProps> = ({
   const [name, setName] = useState<string>('');
   const [type, setType] = useState<CharacterType>('sub'); // Default to sub
   const [level, setLevel] = useState<number>(1);
-  const [characterClass, setCharacterClass] = useState<string>('Warrior');
+  const [characterClass, setCharacterClass] = useState<string>('Dark Wizard');
   const [color, setColor] = useState<string>('#4c9be8'); // Default blue
   
   // Available character classes
