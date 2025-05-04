@@ -186,7 +186,7 @@ const CharacterList: React.FC<CharacterListProps> = ({
           )}
           
           {/* Add character button for less than 3 total characters */}
-          {characters.length < 3 && (
+          {characters.length < 5 && (
             <button
               onClick={handleAddCharacter}
               style={{ 
