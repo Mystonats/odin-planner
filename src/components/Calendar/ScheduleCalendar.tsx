@@ -1,13 +1,15 @@
 import React, { useState, useMemo } from 'react';
 import { Calendar, Views, SlotInfo } from 'react-big-calendar';
-import { format, isAfter, differenceInDays, addDays, isSameDay, startOfDay, endOfDay } from 'date-fns';
+import { differenceInDays, addDays, isSameDay, startOfDay, endOfDay } from 'date-fns';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
+import '../../../src/styles/calendar.css'; // Add this new line
 import { useEvents } from '../../contexts/EventContext';
-import { useCharacters } from '../../contexts/CharacterContext';
 import { Activity } from '../../types/Activity';
 import { localizer } from '../../utils/calendarLocalizer';
 import EventModal from '../Events/EventModal';
 import { activityTypes } from '../../data/activityTypes';
+import CustomToolbar from './MaterialToolbar';
+import CustomDayHeader from './CustomDayHeader';
 
 interface ScheduleCalendarProps {
   selectedCharacterId: string | null;
@@ -26,7 +28,6 @@ interface CalendarEvent extends Omit<Activity, 'type' | 'characterId' | 'isGloba
 const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ selectedCharacterId }) => {
   // Use processedEvents instead of events
   const { processedEvents, getEventById } = useEvents();
-  const { getCharacterById } = useCharacters();
   
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [view, setView] = useState<string>(Views.WEEK);
@@ -229,116 +230,15 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ selectedCharacterId
     setSelectedSlot(null);
   };
   
-  // Custom toolbar for mobile responsiveness
-  const CustomToolbar = (toolbar: any) => {
-    const goToToday = () => {
-      toolbar.onNavigate('TODAY');
-      setSelectedDate(new Date());
-    };
-    
-    return (
-      <div style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '1rem' 
-      }}>
-        <div style={{ 
-          display: 'flex', 
-          gap: '0.5rem',
-          marginBottom: '0.5rem' 
-        }}>
-          <button
-            style={{
-              padding: '0.25rem 0.75rem',
-              backgroundColor: '#344055',
-              color: 'white',
-              borderRadius: '0.25rem',
-              border: 'none'
-            }}
-            onClick={() => toolbar.onNavigate('PREV')}
-          >
-            &lt;
-          </button>
-          <button
-            style={{
-              padding: '0.25rem 0.75rem',
-              backgroundColor: '#344055',
-              color: 'white',
-              borderRadius: '0.25rem',
-              border: 'none'
-            }}
-            onClick={goToToday}
-          >
-            Today
-          </button>
-          <button
-            style={{
-              padding: '0.25rem 0.75rem',
-              backgroundColor: '#344055',
-              color: 'white',
-              borderRadius: '0.25rem',
-              border: 'none'
-            }}
-            onClick={() => toolbar.onNavigate('NEXT')}
-          >
-            &gt;
-          </button>
-        </div>
-        
-        <div style={{ fontSize: '1.25rem', fontWeight: 600 }}>
-          {format(toolbar.date, 'MMMM yyyy')}
-        </div>
-        
-        <div style={{ 
-          display: 'flex', 
-          gap: '0.5rem', 
-          marginTop: '0.5rem' 
-        }}>
-          <button
-            style={{
-              padding: '0.25rem 0.75rem',
-              backgroundColor: view === 'day' ? '#dca54c' : '#e5e7eb',
-              color: view === 'day' ? 'white' : 'black',
-              borderRadius: '0.25rem',
-              border: 'none'
-            }}
-            onClick={() => setView(Views.DAY)}
-          >
-            Day
-          </button>
-          <button
-            style={{
-              padding: '0.25rem 0.75rem',
-              backgroundColor: view === 'week' ? '#dca54c' : '#e5e7eb',
-              color: view === 'week' ? 'white' : 'black',
-              borderRadius: '0.25rem',
-              border: 'none'
-            }}
-            onClick={() => setView(Views.WEEK)}
-          >
-            Week
-          </button>
-          <button
-            style={{
-              padding: '0.25rem 0.75rem',
-              backgroundColor: view === 'month' ? '#dca54c' : '#e5e7eb',
-              color: view === 'month' ? 'white' : 'black',
-              borderRadius: '0.25rem',
-              border: 'none'
-            }}
-            onClick={() => setView(Views.MONTH)}
-          >
-            Month
-          </button>
-        </div>
-      </div>
-    );
-  };
-  
   return (
-    <div style={{ height: '100%', backgroundColor: 'white', borderRadius: '8px', padding: '1rem', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)' }}>
+    <div style={{ 
+      height: '100%', 
+      backgroundColor: 'white', 
+      borderRadius: '12px', 
+      padding: '0', // Reduced padding for Apple style
+      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05)',
+      overflow: 'hidden'
+    }}>
       <Calendar
         localizer={localizer}
         events={calendarEvents}
@@ -353,9 +253,24 @@ const ScheduleCalendar: React.FC<ScheduleCalendarProps> = ({ selectedCharacterId
         selectable={selectedCharacterId !== null}
         onSelectSlot={handleSelectSlot}
         onSelectEvent={handleSelectEvent}
-        eventPropGetter={eventStyleGetter}
+        eventPropGetter={(event) => {
+          // Get event type to apply specific class
+          const eventType = event.resource?.type || 'custom';
+          return {
+            className: `event-${eventType}`,
+            style: {
+              backgroundColor: event.resource?.color || '#0071e3',
+            }
+          };
+        }}
+        dayPropGetter={(date) => ({
+          className: isSameDay(date, new Date()) ? 'current-day' : '',
+        })}
         components={{
           toolbar: CustomToolbar,
+          month: {
+            header: CustomDayHeader
+          }
         }}
         popup
         step={15}

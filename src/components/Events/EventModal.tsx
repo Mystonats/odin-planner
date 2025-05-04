@@ -21,8 +21,8 @@ const EventModal: React.FC<EventModalProps> = ({
   slotInfo,
   characterId,
 }) => {
-  const { addEvent, updateEvent, deleteEvent } = useEvents();
-  const { getCharacterById } = useCharacters();
+  const { addEvent, addSharedEvent, updateEvent, deleteEvent } = useEvents();
+  const { characters, getCharacterById } = useCharacters();
   
   // Modal state
   const [title, setTitle] = useState<string>('');
@@ -34,6 +34,10 @@ const EventModal: React.FC<EventModalProps> = ({
   const [notes, setNotes] = useState<string>('');
   const [isRecurring, setIsRecurring] = useState<boolean>(false);
   const [recurrenceType, setRecurrenceType] = useState<'daily' | 'weekly' | 'none'>('none');
+  
+  // New states for character selection
+  const [selectedCharacterIds, setSelectedCharacterIds] = useState<string[]>([]);
+  const [isSharedEvent, setIsSharedEvent] = useState<boolean>(false);
   
   // New state for fixed vs custom time
   const [useFixedTime, setUseFixedTime] = useState<boolean>(false);
@@ -57,6 +61,10 @@ const EventModal: React.FC<EventModalProps> = ({
       setIsRecurring(event.recurrence !== 'none' && !!event.recurrence);
       setRecurrenceType(event.recurrence || 'none');
       
+      // For editing an event, we don't enable shared mode
+      setIsSharedEvent(false);
+      setSelectedCharacterIds([event.characterId || '']);
+      
       // Determine if this is a fixed time activity
       const activityInfo = activityTypes.find(a => a.id === event.type);
       setUseFixedTime(event.type !== 'custom');
@@ -75,6 +83,10 @@ const EventModal: React.FC<EventModalProps> = ({
       setIsRecurring(false);
       setRecurrenceType('none');
       setUseFixedTime(false);
+      
+      // For new events, initialize with the selected character
+      setIsSharedEvent(false);
+      setSelectedCharacterIds(characterId ? [characterId] : []);
     } else {
       // Default values for new event without slot info
       const now = new Date();
@@ -90,11 +102,15 @@ const EventModal: React.FC<EventModalProps> = ({
       setIsRecurring(false);
       setRecurrenceType('none');
       setUseFixedTime(false);
+      
+      // For new events without slot info, initialize with the selected character
+      setIsSharedEvent(false);
+      setSelectedCharacterIds(characterId ? [characterId] : []);
     }
     
     // After setting initial values, mark initial load as complete
     setIsInitialLoad(false);
-  }, [event, slotInfo]);
+  }, [event, slotInfo, characterId]);
   
   // Get fixed time options for the selected activity type
   const getFixedTimeOptions = () => {
@@ -152,9 +168,31 @@ const EventModal: React.FC<EventModalProps> = ({
     }
   };
   
+  // Handle character selection toggle
+  const handleCharacterToggle = (id: string) => {
+    if (selectedCharacterIds.includes(id)) {
+      // Don't allow deselecting if it's the last character
+      if (selectedCharacterIds.length > 1) {
+        setSelectedCharacterIds(selectedCharacterIds.filter(charId => charId !== id));
+      }
+    } else {
+      setSelectedCharacterIds([...selectedCharacterIds, id]);
+    }
+  };
+  
+  // Toggle shared event mode
+  const handleSharedModeToggle = () => {
+    setIsSharedEvent(!isSharedEvent);
+    
+    // If turning on shared mode and we have a character ID, initialize with that
+    if (!isSharedEvent && characterId) {
+      setSelectedCharacterIds([characterId]);
+    }
+  };
+  
   // Save event
   const handleSave = () => {
-    if (!title || !startDate || !startTime || !endDate || !endTime || !characterId) {
+    if (!title || !startDate || !startTime || !endDate || !endTime) {
       alert('Please fill out all required fields');
       return;
     }
@@ -175,7 +213,7 @@ const EventModal: React.FC<EventModalProps> = ({
       type: activityType,
       start,
       end,
-      characterId,
+      characterId: selectedCharacterIds[0] || null, // Use the first character by default
       isGlobal: false,
       notes,
       recurrence: isRecurring ? recurrenceType : 'none',
@@ -183,17 +221,26 @@ const EventModal: React.FC<EventModalProps> = ({
       color: activityInfo?.color,
     };
     
-    console.log("Creating/updating event with color:", eventData.color);
-    
-    if (event) {
-      // Update existing event
-      updateEvent(event.id, eventData);
-    } else {
-      // Create new event
-      addEvent(eventData);
+    try {
+      if (event) {
+        // Update existing event - we don't support updating to shared events
+        updateEvent(event.id, eventData);
+      } else if (isSharedEvent && selectedCharacterIds.length > 0) {
+        // Create shared events for multiple characters
+        addSharedEvent(eventData, selectedCharacterIds);
+      } else if (selectedCharacterIds.length > 0) {
+        // Create event for a single character
+        eventData.characterId = selectedCharacterIds[0];
+        addEvent(eventData);
+      } else {
+        alert('Please select at least one character');
+        return;
+      }
+      
+      onClose();
+    } catch (error) {
+      alert((error as Error).message);
     }
-    
-    onClose();
   };
   
   // Delete event
@@ -236,23 +283,139 @@ const EventModal: React.FC<EventModalProps> = ({
       }}>
         <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem', borderBottom: '1px solid #e5e7eb', paddingBottom: '0.5rem' }}>{modalTitle}</h2>
         
-        {character && (
+        {/* Character Selection */}
+        {!isEditing && (
           <div style={{ 
             marginBottom: '1rem', 
             padding: '0.5rem', 
             backgroundColor: '#f9fafb', 
             borderRadius: '0.375rem' 
           }}>
-            <span style={{ fontSize: '0.875rem', color: '#4b5563' }}>Scheduling for:</span>
-            <span 
-              style={{ 
-                marginLeft: '0.5rem', 
-                fontWeight: 500, 
-                color: character.color 
-              }}
-            >
-              {character.name} (Lv.{character.level} {character.class})
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '0.5rem' }}>
+              <input
+                type="checkbox"
+                id="shared-event-toggle"
+                checked={isSharedEvent}
+                onChange={handleSharedModeToggle}
+                style={{ 
+                  height: '1rem', 
+                  width: '1rem', 
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.25rem',
+                  marginRight: '0.5rem'
+                }}
+              />
+              <label 
+                htmlFor="shared-event-toggle" 
+                style={{ 
+                  fontSize: '0.875rem', 
+                  fontWeight: 500,
+                  color: '#4b5563' 
+                }}
+              >
+                Schedule for multiple characters
+              </label>
+            </div>
+            
+            {isSharedEvent ? (
+              <div style={{ marginTop: '0.5rem' }}>
+                <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+                  Select characters for this activity:
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {characters.map(char => (
+                    <div 
+                      key={char.id}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        padding: '0.5rem',
+                        backgroundColor: selectedCharacterIds.includes(char.id) ? '#f3f4f6' : 'white',
+                        borderLeft: `4px solid ${char.color}`,
+                        borderRadius: '0.25rem'
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        id={`char-${char.id}`}
+                        checked={selectedCharacterIds.includes(char.id)}
+                        onChange={() => handleCharacterToggle(char.id)}
+                        style={{ 
+                          height: '1rem', 
+                          width: '1rem', 
+                          border: '1px solid #d1d5db',
+                          borderRadius: '0.25rem',
+                          marginRight: '0.5rem'
+                        }}
+                      />
+                      <label 
+                        htmlFor={`char-${char.id}`}
+                        style={{ fontSize: '0.875rem', color: '#4b5563' }}
+                      >
+                        {char.name} (Lv.{char.level} {char.class})
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : character ? (
+              <div style={{ 
+                marginTop: '0.5rem', 
+                display: 'flex', 
+                alignItems: 'center',
+                padding: '0.5rem',
+                backgroundColor: '#f3f4f6',
+                borderLeft: `4px solid ${character.color}`,
+                borderRadius: '0.25rem'
+              }}>
+                <span style={{ fontSize: '0.875rem', color: '#4b5563' }}>
+                  {character.name} (Lv.{character.level} {character.class})
+                </span>
+              </div>
+            ) : (
+              <div style={{ marginTop: '0.5rem' }}>
+                <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '0.5rem' }}>
+                  Select a character for this activity:
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {characters.map(char => (
+                    <div 
+                      key={char.id}
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        padding: '0.5rem',
+                        backgroundColor: selectedCharacterIds.includes(char.id) ? '#f3f4f6' : 'white',
+                        borderLeft: `4px solid ${char.color}`,
+                        borderRadius: '0.25rem',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => setSelectedCharacterIds([char.id])}
+                    >
+                      <input
+                        type="radio"
+                        id={`char-radio-${char.id}`}
+                        checked={selectedCharacterIds[0] === char.id}
+                        onChange={() => setSelectedCharacterIds([char.id])}
+                        style={{ 
+                          height: '1rem', 
+                          width: '1rem', 
+                          border: '1px solid #d1d5db',
+                          borderRadius: '50%',
+                          marginRight: '0.5rem'
+                        }}
+                      />
+                      <label 
+                        htmlFor={`char-radio-${char.id}`}
+                        style={{ fontSize: '0.875rem', color: '#4b5563' }}
+                      >
+                        {char.name} (Lv.{char.level} {char.class})
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
         
@@ -558,13 +721,27 @@ const EventModal: React.FC<EventModalProps> = ({
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
                 onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 btn-outline"
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: 'white',
+                  color: '#4b5563',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '0.375rem',
+                  cursor: 'pointer'
+                }}
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
-                className="px-4 py-2 bg-primary text-white rounded-md hover:bg-dark"
+                style={{
+                  padding: '0.5rem 1rem',
+                  backgroundColor: '#344055',
+                  color: 'white',
+                  borderRadius: '0.375rem',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
               >
                 Save
               </button>

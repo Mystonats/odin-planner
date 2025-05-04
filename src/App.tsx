@@ -7,6 +7,7 @@ import EventList from './components/Events/EventList';
 import CalendarLegend from './components/Calendar/CalendarLegend';
 import ScheduleCalendar from './components/Calendar/ScheduleCalendar';
 import EventModal from './components/Events/EventModal';
+import AccountSwitcher from './components/Accounts/AccountSwitcher';
 import { Activity } from './types/Activity';
 
 const App: React.FC = () => {
@@ -33,6 +34,9 @@ const App: React.FC = () => {
           <div className="flex flex-col lg:flex-row gap-6">
             {/* Sidebar section */}
             <div className="w-full lg:w-1/4 space-y-6">
+              {/* Account switcher component */}
+              <AccountSwitcher />
+              
               {/* Character list component */}
               <CharacterList
                 onSelectCharacter={setSelectedCharacterId}

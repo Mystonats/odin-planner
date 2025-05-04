@@ -24,7 +24,7 @@ const CharacterModal: React.FC<CharacterModalProps> = ({
   
   // Available character classes
   const characterClasses = [
-    'Dark Wizard', 'Archmage', 'Priest', 'Paladin', 'Assassin', 'Archer', 'Defender', 'Berserker'
+    'Dark Wizard', 'Archmage', 'Priest', 'Paladin', 'Assassin', 'Sniper', 'Defender', 'Berserker'
   ];
   
   // Color options

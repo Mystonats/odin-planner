@@ -5,11 +5,13 @@ import { globalEvents } from '../data/globalEvents';
 import { v4 as uuidv4 } from 'uuid';
 import { addDays, isSameDay, addWeeks, isBefore } from 'date-fns';
 import { activityTypes } from '../data/activityTypes';
+import { useCharacters } from './CharacterContext';
 
 interface EventContextType {
   events: Activity[];
   processedEvents: Activity[]; // New property for expanded recurring events
   addEvent: (event: Omit<Activity, 'id'>) => string;
+  addSharedEvent: (event: Omit<Activity, 'id'>, characterIds: string[]) => void;
   updateEvent: (id: string, updates: Partial<Activity>) => void;
   deleteEvent: (id: string) => void;
   getEventById: (id: string) => Activity | undefined;
@@ -25,6 +27,7 @@ const initialEvents: Activity[] = [...globalEvents];
 const RECURRENCE_DAYS = 60;
 
 export function EventProvider({ children }: { children: ReactNode }) {
+  const { currentAccountId, getCharacterById, getAllCharacters } = useCharacters();
   const [events, setEvents] = useLocalStorage<Activity[]>('odin-events', initialEvents);
 
   // Process recurring events to expand them into specific dates
@@ -158,6 +161,27 @@ export function EventProvider({ children }: { children: ReactNode }) {
     setEvents([...events, { ...completeEvent, id }]);
     return id;
   };
+  
+  // Add a shared event to multiple characters
+  const addSharedEvent = (eventBase: Omit<Activity, 'id'>, characterIds: string[]) => {
+    // Skip if no characters selected
+    if (characterIds.length === 0) return;
+    
+    // Get activity type info for color
+    const activityInfo = activityTypes.find(a => a.id === eventBase.type);
+    
+    // Create events for each selected character
+    const newEvents = characterIds.map(characterId => {
+      return {
+        ...eventBase,
+        id: uuidv4(),
+        characterId,
+        color: eventBase.color || activityInfo?.color,
+      } as Activity;
+    });
+    
+    setEvents([...events, ...newEvents]);
+  };
 
   // Update an existing event
   const updateEvent = (id: string, updates: Partial<Activity>) => {
@@ -213,6 +237,7 @@ export function EventProvider({ children }: { children: ReactNode }) {
         events,
         processedEvents,
         addEvent,
+        addSharedEvent,
         updateEvent,
         deleteEvent,
         getEventById,
